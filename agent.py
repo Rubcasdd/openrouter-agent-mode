@@ -2,6 +2,9 @@ import json
 import re
 import subprocess
 import os
+import pyautogui
+import pytesseract
+from PIL import Image
 from openrouter import OpenRouter
 
 class OpenRouterAgent:
@@ -107,5 +110,27 @@ class OpenRouterAgent:
                 return f"Created file: {value['path']}"
             except Exception as e:
                 return f"Failed to create file: {str(e)}"
+        elif action == "take_screenshot":
+            try:
+                screenshot = pyautogui.screenshot()
+                screenshot_path = "/tmp/screenshot.png"
+                screenshot.save(screenshot_path)
+                text = pytesseract.image_to_string(screenshot)
+                return f"Screenshot taken. OCR text: {text[:500]}..."  # Limit text
+            except Exception as e:
+                return f"Failed to take screenshot: {str(e)}"
+        elif action == "click":
+            try:
+                x, y = value["x"], value["y"]
+                pyautogui.click(x, y)
+                return f"Clicked at ({x}, {y})"
+            except Exception as e:
+                return f"Failed to click: {str(e)}"
+        elif action == "type_text":
+            try:
+                pyautogui.typewrite(value)
+                return f"Typed: {value}"
+            except Exception as e:
+                return f"Failed to type: {str(e)}"
         else:
             return f"Unknown action: {action}"

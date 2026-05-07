@@ -6,10 +6,14 @@ A simple local CLI agent that uses OpenRouter to process instructions and perfor
 
 - Choose from different agent profiles (Assistant, Coder, Agent)
 - Send instructions to an agent powered by OpenRouter
+- Multi-step task execution with screen awareness
 - Automatically open URLs and search results in your default browser
 - Run terminal commands on your local machine
 - Open files with your default applications
 - Create new files with specified content
+- Take screenshots and read screen text with OCR
+- Click on screen coordinates
+- Type text on the keyboard
 - Keep a conversation history during the session
 
 ## Getting started
@@ -48,7 +52,9 @@ python app.py
 - `Run the command: ls -la`
 - `Open the file: /home/user/document.txt`
 - `Create a file at /tmp/test.txt with content: Hello World`
-- `Open the GitHub homepage`
+- `Take a screenshot and describe what you see`
+- `Click on the button at x=500, y=300`
+- `Type 'Hello World' in the text field`
 
 ## Notes
 

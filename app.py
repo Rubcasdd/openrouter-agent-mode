@@ -1,4 +1,6 @@
 import os
+import pyautogui
+import pytesseract
 from agent import OpenRouterAgent
 
 DEFAULT_MODEL = "tencent/hy3-preview:free"
@@ -8,12 +10,14 @@ PROFILES = {
     "assistant": "You are a helpful assistant.",
     "coder": "You are a coding expert.",
     "agent": (
-        "You are a local PC assistant. "
-        "If the user asks you to perform an action on their computer, respond ONLY with a JSON object in this format:\n"
-        "{\"action\":\"open_url\",\"value\":\"https://example.com\"}\n"
-        "Available actions: open_url, search, run_command, open_file, create_file\n"
-        "For create_file, value is {\"path\":\"file.txt\",\"content\":\"text\"}\n"
-        "Do not include any other text in your response when performing an action."
+        "You are a multi-step local PC assistant. "
+        "You can see the screen by taking screenshots and reading text with OCR. "
+        "Perform actions step by step to complete tasks. "
+        "Available actions: open_url, search, run_command, open_file, create_file, take_screenshot, click (with x,y), type_text. "
+        "For click, value is {\"x\":100, \"y\":200}. "
+        "For type_text, value is the text to type. "
+        "Respond ONLY with a JSON object for the next action, or {\"action\":\"done\"} when finished. "
+        "Do not include any other text."
     )
 }
 
@@ -39,20 +43,39 @@ def main():
         if user_text.lower() in ["exit", "quit"]:
             break
 
-        history.append({"role": "user", "content": user_text})
-        messages = [{"role": "system", "content": system_prompt}] + history
+        history = [{"role": "user", "content": user_text}]
+        print("Starting multi-step task...")
 
-        try:
-            assistant_text = agent.chat(messages).strip()
-            print(f"AI: {assistant_text}")
-            history.append({"role": "assistant", "content": assistant_text})
+        while True:
+            # Take screenshot and add OCR to messages
+            try:
+                screenshot = pyautogui.screenshot()
+                text = pytesseract.image_to_string(screenshot)[:1000]  # Limit
+                screen_msg = f"Current screen text: {text}"
+            except:
+                screen_msg = "Screenshot failed."
 
-            action = agent.parse_action(assistant_text)
-            if action:
-                result = agent.execute_action(action)
-                print(f"Executed: {result}")
-        except Exception as e:
-            print(f"Error: {e}")
+            messages = [{"role": "system", "content": system_prompt}] + history + [{"role": "user", "content": screen_msg}]
+
+            try:
+                assistant_text = agent.chat(messages).strip()
+                print(f"AI: {assistant_text}")
+                history.append({"role": "assistant", "content": assistant_text})
+
+                action = agent.parse_action(assistant_text)
+                if action:
+                    if action['action'] == 'done':
+                        print("Task completed.")
+                        break
+                    result = agent.execute_action(action)
+                    print(f"Executed: {result}")
+                    history.append({"role": "user", "content": f"Executed: {result}"})
+                else:
+                    print("No action parsed.")
+                    break
+            except Exception as e:
+                print(f"Error: {e}")
+                break
 
 if __name__ == "__main__":
     main()
