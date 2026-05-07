@@ -116,11 +116,46 @@ class OpenRouterAgent:
                         return f"Could not open file: {value}"
         elif action == "create_file":
             try:
-                with open(value["path"], "w") as f:
+                folder = os.path.dirname(value["path"])
+                if folder:
+                    os.makedirs(folder, exist_ok=True)
+                with open(value["path"], "w", encoding="utf-8") as f:
                     f.write(value["content"])
                 return f"Created file: {value['path']}"
             except Exception as e:
                 return f"Failed to create file: {str(e)}"
+        elif action == "create_folder":
+            try:
+                os.makedirs(value, exist_ok=True)
+                return f"Created folder: {value}"
+            except Exception as e:
+                return f"Failed to create folder: {str(e)}"
+        elif action == "read_file":
+            try:
+                with open(value, "r", encoding="utf-8") as f:
+                    content = f.read(2000)
+                return f"Read file {value}: {content}"
+            except Exception as e:
+                return f"Failed to read file: {str(e)}"
+        elif action == "list_dir":
+            try:
+                entries = os.listdir(value)
+                return f"Directory contents of {value}: {entries}"
+            except Exception as e:
+                return f"Failed to list directory: {str(e)}"
+        elif action == "analyze_screen":
+            try:
+                pyautogui = import_pyautogui()
+                pytesseract = import_pytesseract()
+                screenshot = pyautogui.screenshot()
+                temp_dir = tempfile.gettempdir()
+                os.makedirs(temp_dir, exist_ok=True)
+                screenshot_path = os.path.join(temp_dir, "screenshot.png")
+                screenshot.save(screenshot_path)
+                text = pytesseract.image_to_string(screenshot)
+                return f"Screen analyzed and saved to {screenshot_path}. Detected text: {text[:500]}..."
+            except Exception as e:
+                return f"Failed to analyze screen: {str(e)}"
         elif action == "take_screenshot":
             try:
                 pyautogui = import_pyautogui()
@@ -131,11 +166,10 @@ class OpenRouterAgent:
                 screenshot_path = os.path.join(temp_dir, "screenshot.png")
                 screenshot.save(screenshot_path)
                 text = pytesseract.image_to_string(screenshot)
-                return f"Screenshot taken and saved to {screenshot_path}. OCR text: {text[:500]}..."  # Limit text
+                return f"Screenshot taken and saved to {screenshot_path}. OCR text: {text[:500]}..."
             except Exception as e:
                 return f"Failed to take screenshot: {str(e)}"
         elif action == "click":
-
             try:
                 pyautogui = import_pyautogui()
                 x, y = value["x"], value["y"]

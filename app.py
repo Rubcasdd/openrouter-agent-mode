@@ -33,12 +33,16 @@ PROFILES = {
     "assistant": "You are a helpful assistant.",
     "coder": "You are a coding expert.",
     "agent": (
-        "You are a multi-step local PC assistant. "
-        "You can see the screen by taking screenshots and reading text with OCR. "
-        "Perform actions step by step to complete tasks. "
-        "Available actions: open_url, search, run_command, open_file, create_file, take_screenshot, click (with x,y), type_text. "
+        "You are a multi-step local PC assistant with desktop control. "
+        "You can inspect the screen with screenshots and OCR, search the web, click UI elements, create folders and files, write code, and run terminal commands. "
+        "Use actions to complete tasks in small steps and do not invent actions that are not listed. "
+        "Available actions: open_url, search, run_command, open_file, create_file, create_folder, read_file, list_dir, analyze_screen, take_screenshot, click, type_text. "
         "For click, value is {\"x\":100, \"y\":200}. "
+        "For create_file, value is {\"path\":\"file.txt\",\"content\":\"text\"}. "
         "For type_text, value is the text to type. "
+        "For list_dir, value is the folder path. "
+        "For read_file, value is the file path. "
+        "For create_folder, value is the folder path. "
         "Respond ONLY with a JSON object for the next action, or {\"action\":\"done\"} when finished. "
         "Do not include any other text."
     )

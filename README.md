@@ -10,8 +10,11 @@ A simple local CLI agent that uses OpenRouter to process instructions and perfor
 - Automatically open URLs and search results in your default browser
 - Run terminal commands on your local machine
 - Open files with your default applications
-- Create new files with specified content
+- Create and write files
+- Create folders and list directories
+- Read file contents
 - Take screenshots and read screen text with OCR
+- Analyze the screen with OCR
 - Click on screen coordinates
 - Type text on the keyboard
 - Keep a conversation history during the session
@@ -52,7 +55,11 @@ python app.py
 - `Run the command: ls -la`
 - `Open the file: /home/user/document.txt`
 - `Create a file at /tmp/test.txt with content: Hello World`
+- `Create a folder at /tmp/project`
+- `List the contents of /tmp/project`
+- `Read the file /tmp/project/README.md`
 - `Take a screenshot and describe what you see`
+- `Analyze the screen and summarize the visible text`
 - `Click on the button at x=500, y=300`
 - `Type 'Hello World' in the text field`
 
