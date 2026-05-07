@@ -37,8 +37,8 @@ else:
     print("Warning: No DISPLAY environment variable set. Running in limited mode.")
     OpenRouterAgent = None
 
-DEFAULT_MODEL = "tencent/hy3-preview:free"
-FALLBACK_MODELS = ["tencent/hy3-preview:free"]
+DEFAULT_MODEL = "baidu/qianfan-ocr-fast:free"
+FALLBACK_MODELS = ["baidu/qianfan-ocr-fast:free", "tencent/hy3-preview:free"]
 
 PROFILES = {
     "assistant": "You are a helpful assistant.",
