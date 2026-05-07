@@ -3,6 +3,7 @@ import json
 import re
 import subprocess
 import os
+import tempfile
 from openrouter import OpenRouter
 
 class OpenRouterAgent:
@@ -125,13 +126,16 @@ class OpenRouterAgent:
                 pyautogui = import_pyautogui()
                 pytesseract = import_pytesseract()
                 screenshot = pyautogui.screenshot()
-                screenshot_path = "/tmp/screenshot.png"
+                temp_dir = tempfile.gettempdir()
+                os.makedirs(temp_dir, exist_ok=True)
+                screenshot_path = os.path.join(temp_dir, "screenshot.png")
                 screenshot.save(screenshot_path)
                 text = pytesseract.image_to_string(screenshot)
-                return f"Screenshot taken. OCR text: {text[:500]}..."  # Limit text
+                return f"Screenshot taken and saved to {screenshot_path}. OCR text: {text[:500]}..."  # Limit text
             except Exception as e:
                 return f"Failed to take screenshot: {str(e)}"
         elif action == "click":
+
             try:
                 pyautogui = import_pyautogui()
                 x, y = value["x"], value["y"]
