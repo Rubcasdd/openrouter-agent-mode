@@ -62,13 +62,13 @@ class OpenRouterAgent:
 
         action = parsed.get("action")
         value = parsed.get("value")
-        if action and value:
+        if action:
             return {"action": action, "value": value}
         return None
 
     def execute_action(self, action_dict):
         action = action_dict["action"]
-        value = action_dict["value"]
+        value = action_dict.get("value")
 
         if action == "open_url":
             import webbrowser
@@ -132,5 +132,7 @@ class OpenRouterAgent:
                 return f"Typed: {value}"
             except Exception as e:
                 return f"Failed to type: {str(e)}"
+        elif action == "done":
+            return "Task finished."
         else:
             return f"Unknown action: {action}"
