@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenRouter Agent Mode</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f3f4f6; color: #111827; }
+      .container { max-width: 860px; margin: 0 auto; padding: 24px; }
+      header { margin-bottom: 24px; }
+      h1 { margin: 0 0 8px; font-size: 2rem; }
+      .card { background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(15,23,42,0.08); padding: 24px; margin-bottom: 20px; }
+      input, textarea, button { font: inherit; }
+      input[type="text"], textarea { width: 100%; padding: 12px 14px; border: 1px solid #d1d5db; border-radius: 10px; margin-top: 8px; }
+      textarea { min-height: 120px; resize: vertical; }
+      .button-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+      button { background: #2563eb; border: none; color: white; padding: 12px 18px; border-radius: 10px; cursor: pointer; }
+      button.secondary { background: #6b7280; }
+      .message { margin-bottom: 14px; padding: 16px; border-radius: 12px; }
+      .message.user { background: #e0f2fe; }
+      .message.assistant { background: #f3f4f6; }
+      .flash { padding: 12px 14px; background: #e2e8f0; border-radius: 10px; margin-bottom: 16px; }
+      .history-label { font-size: 0.95rem; color: #6b7280; margin-bottom: 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>OpenRouter Agent Mode</h1>
+        <p>Enter your OpenRouter API key and send the agent a task. The agent can open URLs or run a search when instructed.</p>
+      </header>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          {% for message in messages %}
+            <div class="flash">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <div class="card">
+        <form action="/set_key" method="POST">
+          <label for="api_key">OpenRouter API Key</label>
+          <input id="api_key" name="api_key" type="text" value="{{ api_key }}" placeholder="sk-..." autocomplete="off" />
+          <div class="button-row">
+            <button type="submit">Save API Key</button>
+            <button type="submit" formaction="/clear" formmethod="post" class="secondary">Clear History</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <form action="/chat" method="POST">
+          <label for="message">Ask the agent</label>
+          <textarea id="message" name="message" placeholder="Open https://example.com or search for coffee shops"></textarea>
+          <div class="button-row">
+            <button type="submit">Send Task</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="history-label">Conversation history</div>
+        {% if history %}
+          {% for item in history %}
+            <div class="message {{ item.role }}">
+              <strong>{{ item.role.capitalize() }}:</strong>
+              <div>{{ item.content }}</div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p>No messages yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </body>
+</html>
