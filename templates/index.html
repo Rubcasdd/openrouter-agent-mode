@@ -27,7 +27,7 @@
     <div class="container">
       <header>
         <h1>OpenRouter Agent Mode</h1>
-        <p>Enter your OpenRouter API key and send the agent a task. The agent can open URLs or run a search when instructed.</p>
+        <p>Enter your OpenRouter API key and send the agent a task. The agent can open URLs, run searches, execute commands, and open files.</p>
       </header>
 
       {% with messages = get_flashed_messages() %}
@@ -50,9 +50,23 @@
       </div>
 
       <div class="card">
+        <form action="/set_profile" method="POST">
+          <label for="profile">Agent Profile</label>
+          <select id="profile" name="profile">
+            {% for key, desc in profiles.items() %}
+              <option value="{{ key }}" {% if key == profile %}selected{% endif %}>{{ key.capitalize() }}</option>
+            {% endfor %}
+          </select>
+          <div class="button-row">
+            <button type="submit">Set Profile</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
         <form action="/chat" method="POST">
           <label for="message">Ask the agent</label>
-          <textarea id="message" name="message" placeholder="Open https://example.com or search for coffee shops"></textarea>
+          <textarea id="message" name="message" placeholder="Open https://example.com or search for coffee shops or run ls -la or open /path/to/file.txt"></textarea>
           <div class="button-row">
             <button type="submit">Send Task</button>
           </div>

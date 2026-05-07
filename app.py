@@ -7,23 +7,27 @@ from agent import OpenRouterAgent
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
-DEFAULT_MODEL = "gpt-4o-mini"
+DEFAULT_MODEL = "tencent/hy3-preview:free"
 
-SYSTEM_PROMPT = (
-    "You are a local PC assistant. "
-    "When you want to perform a local action, respond with a JSON object only in the exact format:\n"
-    "{\"action\":\"open_url\",\"value\":\"https://example.com\"}\n"
-    "or\n"
-    "{\"action\":\"search\",\"value\":\"best coffee shops near me\"}\n"
-    "Do not include any extra text outside the JSON object. "
-    "If no action is required, answer as normal text."
-)
+PROFILES = {
+    "assistant": "You are a helpful assistant.",
+    "coder": "You are a coding expert.",
+    "agent": (
+        "You are a local PC assistant. "
+        "If the user asks you to perform an action on their computer, respond ONLY with a JSON object in this format:\n"
+        "{\"action\":\"open_url\",\"value\":\"https://example.com\"}\n"
+        "Available actions: open_url, search, run_command, open_file, create_file\n"
+        "For create_file, value is {\"path\":\"file.txt\",\"content\":\"text\"}\n"
+        "Do not include any other text in your response when performing an action."
+    )
+}
 
 @app.route("/", methods=["GET"])
 def index():
     history = session.get("history", [])
     api_key = session.get("api_key", "")
-    return render_template("index.html", api_key=api_key, history=history)
+    profile = session.get("profile", "agent")
+    return render_template("index.html", api_key=api_key, history=history, profile=profile, profiles=PROFILES)
 
 @app.route("/set_key", methods=["POST"])
 def set_key():
@@ -35,6 +39,17 @@ def set_key():
     session["api_key"] = api_key
     session["history"] = []
     flash("API key saved for this browser session.")
+    return redirect(url_for("index"))
+
+@app.route("/set_profile", methods=["POST"])
+def set_profile():
+    profile = request.form.get("profile", "agent")
+    if profile in PROFILES:
+        session["profile"] = profile
+        session["history"] = []  # Reset history on profile change
+        flash(f"Profile set to: {profile}")
+    else:
+        flash("Invalid profile")
     return redirect(url_for("index"))
 
 @app.route("/clear", methods=["POST"])
@@ -58,27 +73,29 @@ def chat():
     history = session.get("history", [])
     history.append({"role": "user", "content": user_text})
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}] + history
+    profile = session.get("profile", "agent")
+    system_prompt = PROFILES[profile]
+
+    messages = [{"role": "system", "content": system_prompt}] + history
     agent = OpenRouterAgent(api_key=api_key, model=DEFAULT_MODEL)
 
+    print(f"Sending to model: {messages}")
     try:
         assistant_text = agent.chat(messages).strip()
+        print(f"Assistant response: {assistant_text}")
     except Exception as exc:
+        print(f"Error: {exc}")
         flash(f"OpenRouter error: {exc}")
         session["history"] = history
         return redirect(url_for("index"))
 
     action = agent.parse_action(assistant_text)
     if action:
-        if action["action"] == "open_url":
-            webbrowser.open(action["value"], new=2)
-            flash(f"Opened URL: {action['value']}")
-        elif action["action"] == "search":
-            search_url = f"https://www.google.com/search?q={quote(action['value'])}"
-            webbrowser.open(search_url, new=2)
-            flash(f"Opened search for: {action['value']}")
-        else:
-            flash(f"Unsupported action: {action['action']}")
+        result = agent.execute_action(action)
+        flash(result)
+    else:
+        flash("No action taken. AI response:")
+        flash(assistant_text)
 
     history.append({"role": "assistant", "content": assistant_text})
     session["history"] = history

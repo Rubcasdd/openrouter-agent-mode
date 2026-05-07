@@ -5,9 +5,13 @@ A simple local agent web app that uses OpenRouter to process instructions and pe
 ## Features
 
 - Enter your OpenRouter API key in a local browser session
+- Choose from different agent profiles (Assistant, Coder, Agent)
 - Send instructions to an agent powered by OpenRouter
 - Automatically open URLs and search results in your default browser
-- Keep a simple conversation history during the session
+- Run terminal commands on your local machine
+- Open files with your default applications
+- Create new files with specified content
+- Keep a conversation history during the session
 
 ## Getting started
 
@@ -37,6 +41,9 @@ python app.py
 
 - `Open https://openrouter.ai`
 - `Search for nearby coffee shops`
+- `Run the command: ls -la`
+- `Open the file: /home/user/document.txt`
+- `Create a file at /tmp/test.txt with content: Hello World`
 - `Open the GitHub homepage`
 
 ## Notes
