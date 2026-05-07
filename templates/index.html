@@ -38,6 +38,19 @@
         {% endif %}
       {% endwith %}
 
+      {% if pending_action %}
+      <script>
+        var action = {{ pending_action | tojson }};
+        if (action.action === 'open_url') {
+          window.open(action.value, '_blank');
+        } else if (action.action === 'search') {
+          var searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(action.value);
+          window.open(searchUrl, '_blank');
+        }
+        // For other actions, they can't be executed client-side
+      </script>
+      {% endif %}
+
       <div class="card">
         <form action="/set_key" method="POST">
           <label for="api_key">OpenRouter API Key</label>

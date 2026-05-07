@@ -1,13 +1,8 @@
 import os
-import webbrowser
-from urllib.parse import quote
-
-from flask import Flask, flash, redirect, render_template, request, session, url_for
 from agent import OpenRouterAgent
 
-app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24))
 DEFAULT_MODEL = "tencent/hy3-preview:free"
+FALLBACK_MODELS = ["tencent/hy3-preview:free"]
 
 PROFILES = {
     "assistant": "You are a helpful assistant.",
@@ -22,84 +17,42 @@ PROFILES = {
     )
 }
 
-@app.route("/", methods=["GET"])
-def index():
-    history = session.get("history", [])
-    api_key = session.get("api_key", "")
-    profile = session.get("profile", "agent")
-    return render_template("index.html", api_key=api_key, history=history, profile=profile, profiles=PROFILES)
-
-@app.route("/set_key", methods=["POST"])
-def set_key():
-    api_key = request.form.get("api_key", "").strip()
+def main():
+    api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
-        flash("Enter a valid OpenRouter API key.")
-        return redirect(url_for("index"))
+        api_key = input("Enter your OpenRouter API key: ").strip()
+        if not api_key:
+            print("API key required.")
+            return
 
-    session["api_key"] = api_key
-    session["history"] = []
-    flash("API key saved for this browser session.")
-    return redirect(url_for("index"))
+    profile = input("Choose profile (assistant/coder/agent) [agent]: ").strip() or "agent"
+    system_prompt = PROFILES.get(profile, PROFILES["agent"])
 
-@app.route("/set_profile", methods=["POST"])
-def set_profile():
-    profile = request.form.get("profile", "agent")
-    if profile in PROFILES:
-        session["profile"] = profile
-        session["history"] = []  # Reset history on profile change
-        flash(f"Profile set to: {profile}")
-    else:
-        flash("Invalid profile")
-    return redirect(url_for("index"))
-
-@app.route("/clear", methods=["POST"])
-def clear():
-    session.pop("history", None)
-    flash("Conversation history cleared.")
-    return redirect(url_for("index"))
-
-@app.route("/chat", methods=["POST"])
-def chat():
-    api_key = session.get("api_key", "")
-    if not api_key:
-        flash("Please set your OpenRouter API key first.")
-        return redirect(url_for("index"))
-
-    user_text = request.form.get("message", "").strip()
-    if not user_text:
-        flash("Enter a message or task for the agent.")
-        return redirect(url_for("index"))
-
-    history = session.get("history", [])
-    history.append({"role": "user", "content": user_text})
-
-    profile = session.get("profile", "agent")
-    system_prompt = PROFILES[profile]
-
-    messages = [{"role": "system", "content": system_prompt}] + history
+    history = []
     agent = OpenRouterAgent(api_key=api_key, model=DEFAULT_MODEL)
 
-    print(f"Sending to model: {messages}")
-    try:
-        assistant_text = agent.chat(messages).strip()
-        print(f"Assistant response: {assistant_text}")
-    except Exception as exc:
-        print(f"Error: {exc}")
-        flash(f"OpenRouter error: {exc}")
-        session["history"] = history
-        return redirect(url_for("index"))
+    print("Type 'exit' or 'quit' to stop.")
+    while True:
+        user_text = input("You: ").strip()
+        if not user_text:
+            continue
+        if user_text.lower() in ["exit", "quit"]:
+            break
 
-    action = agent.parse_action(assistant_text)
-    if action:
-        result = agent.execute_action(action)
-        flash(result)
-    else:
-        flash("No action taken. AI response:")
-        flash(assistant_text)
+        history.append({"role": "user", "content": user_text})
+        messages = [{"role": "system", "content": system_prompt}] + history
 
-    history.append({"role": "assistant", "content": assistant_text})
-    session["history"] = history
-    return redirect(url_for("index"))
+        try:
+            assistant_text = agent.chat(messages).strip()
+            print(f"AI: {assistant_text}")
+            history.append({"role": "assistant", "content": assistant_text})
+
+            action = agent.parse_action(assistant_text)
+            if action:
+                result = agent.execute_action(action)
+                print(f"Executed: {result}")
+        except Exception as e:
+            print(f"Error: {e}")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    main()

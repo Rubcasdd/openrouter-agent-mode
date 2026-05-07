@@ -10,12 +10,30 @@ class OpenRouterAgent:
         self.model = model
 
     def chat(self, messages):
-        response = self.client.chat.completions.create(
+        print("Calling chat.send")
+        response = self.client.chat.send(
             model=self.model,
             messages=messages,
-            stream=False
+            stream=False,
         )
-        return response.choices[0].message.content
+        print("Response received")
+        content = self._extract_content(response.choices[0].message.content)
+        return content
+
+    def _extract_content(self, content):
+        if content is None:
+            return ""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if hasattr(item, "text"):
+                    parts.append(item.text)
+                elif isinstance(item, dict) and "text" in item:
+                    parts.append(item["text"])
+            return "\n".join(parts)
+        return str(content)
 
     def parse_action(self, text: str):
         # First, try to find JSON in code blocks
