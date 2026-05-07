@@ -5,12 +5,15 @@ import subprocess
 import os
 import sys
 import tempfile
+import base64
+from io import BytesIO
 from openrouter import OpenRouter
 
 class OpenRouterAgent:
     def __init__(self, api_key: str, model: str = "tencent/hy3-preview:free"):
         self.client = OpenRouter(api_key=api_key)
         self.model = model
+        self.action_history = []
 
     def chat(self, messages):
         print("Calling chat.send")
@@ -22,6 +25,26 @@ class OpenRouterAgent:
         print("Response received")
         content = self._extract_content(response.choices[0].message.content)
         return content
+    
+    def encode_image_to_base64(self, image_path):
+        """Convert image file to base64 for API"""
+        try:
+            with open(image_path, 'rb') as image_file:
+                return base64.b64encode(image_file.read()).decode('utf-8')
+        except Exception as e:
+            print("Error encoding image: " + str(e))
+            return None
+    
+    def encode_pil_image_to_base64(self, pil_image):
+        """Convert PIL image to base64"""
+        try:
+            buffer = BytesIO()
+            pil_image.save(buffer, format="PNG")
+            buffer.seek(0)
+            return base64.b64encode(buffer.getvalue()).decode('utf-8')
+        except Exception as e:
+            print("Error encoding PIL image: " + str(e))
+            return None
 
     def _extract_content(self, content):
         if content is None:
@@ -37,6 +60,15 @@ class OpenRouterAgent:
                     parts.append(item["text"])
             return "\n".join(parts)
         return str(content)
+    
+    def get_mouse_position(self):
+        """Get current mouse position"""
+        try:
+            pyautogui = importlib.import_module("pyautogui")
+            x, y = pyautogui.position()
+            return {"x": x, "y": y}
+        except Exception as e:
+            return {"x": 0, "y": 0, "error": str(e)}
 
     def parse_action(self, text: str):
         # First, try to find JSON in code blocks
@@ -146,28 +178,33 @@ class OpenRouterAgent:
                 return f"Failed to list directory: {str(e)}"
         elif action == "analyze_screen":
             try:
-                pyautogui = import_pyautogui()
-                pytesseract = import_pytesseract()
+                pyautogui = importlib.import_module("pyautogui")
                 screenshot = pyautogui.screenshot()
-                temp_dir = tempfile.gettempdir()
-                os.makedirs(temp_dir, exist_ok=True)
-                screenshot_path = os.path.join(temp_dir, "screenshot.png")
-                screenshot.save(screenshot_path)
-                text = pytesseract.image_to_string(screenshot)
-                return f"Screen analyzed and saved to {screenshot_path}. Detected text: {text[:500]}..."
+                image_base64 = self.encode_pil_image_to_base64(screenshot)
+                if image_base64:
+                    mouse_pos = self.get_mouse_position()
+                    result = f"Screen analyzed. Image sent to AI for vision analysis. Current mouse position: {mouse_pos}"
+                    self.action_history.append({"action": "analyze_screen", "result": result})
+                    return result
+                else:
+                    return "Failed to encode screenshot"
             except Exception as e:
                 return f"Failed to analyze screen: {str(e)}"
         elif action == "take_screenshot":
             try:
-                pyautogui = import_pyautogui()
-                pytesseract = import_pytesseract()
+                pyautogui = importlib.import_module("pyautogui")
                 screenshot = pyautogui.screenshot()
                 temp_dir = tempfile.gettempdir()
                 os.makedirs(temp_dir, exist_ok=True)
                 screenshot_path = os.path.join(temp_dir, "screenshot.png")
                 screenshot.save(screenshot_path)
-                text = pytesseract.image_to_string(screenshot)
-                return f"Screenshot taken and saved to {screenshot_path}. OCR text: {text[:500]}..."
+                
+                image_base64 = self.encode_pil_image_to_base64(screenshot)
+                mouse_pos = self.get_mouse_position()
+                
+                result = f"Screenshot taken: {screenshot_path}. Mouse at: {mouse_pos}. Image encoded for AI vision."
+                self.action_history.append({"action": "take_screenshot", "path": screenshot_path, "mouse": mouse_pos})
+                return result
             except Exception as e:
                 return f"Failed to take screenshot: {str(e)}"
         elif action == "click":
@@ -175,9 +212,56 @@ class OpenRouterAgent:
                 pyautogui = import_pyautogui()
                 x, y = value["x"], value["y"]
                 pyautogui.click(x, y)
-                return f"Clicked at ({x}, {y})"
+                result = f"Clicked at ({x}, {y})"
+                self.action_history.append({"action": "click", "x": x, "y": y})
+                return result
             except Exception as e:
                 return f"Failed to click: {str(e)}"
+        elif action == "move_mouse":
+            try:
+                pyautogui = import_pyautogui()
+                x, y = value["x"], value["y"]
+                duration = value.get("duration", 0.5)
+                pyautogui.moveTo(x, y, duration=duration)
+                result = f"Moved mouse to ({x}, {y})"
+                self.action_history.append({"action": "move_mouse", "x": x, "y": y})
+                return result
+            except Exception as e:
+                return f"Failed to move mouse: {str(e)}"
+        elif action == "scroll":
+            try:
+                pyautogui = import_pyautogui()
+                direction = value.get("direction", "down")  # "up" or "down"
+                amount = value.get("amount", 3)
+                if direction.lower() == "up":
+                    pyautogui.scroll(amount)
+                else:
+                    pyautogui.scroll(-amount)
+                result = f"Scrolled {direction} by {amount}"
+                self.action_history.append({"action": "scroll", "direction": direction, "amount": amount})
+                return result
+            except Exception as e:
+                return f"Failed to scroll: {str(e)}"
+        elif action == "double_click":
+            try:
+                pyautogui = import_pyautogui()
+                x, y = value["x"], value["y"]
+                pyautogui.doubleClick(x, y)
+                result = f"Double clicked at ({x}, {y})"
+                self.action_history.append({"action": "double_click", "x": x, "y": y})
+                return result
+            except Exception as e:
+                return f"Failed to double click: {str(e)}"
+        elif action == "right_click":
+            try:
+                pyautogui = import_pyautogui()
+                x, y = value["x"], value["y"]
+                pyautogui.rightClick(x, y)
+                result = f"Right clicked at ({x}, {y})"
+                self.action_history.append({"action": "right_click", "x": x, "y": y})
+                return result
+            except Exception as e:
+                return f"Failed to right click: {str(e)}"
         elif action == "type_text":
             try:
                 pyautogui = import_pyautogui()

@@ -3,31 +3,476 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>OpenRouter Agent Mode</title>
+    <title>OpenRouter Agent Mode - Neural Control</title>
     <style>
-      body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f3f4f6; color: #111827; }
-      .container { max-width: 860px; margin: 0 auto; padding: 24px; }
-      header { margin-bottom: 24px; }
-      h1 { margin: 0 0 8px; font-size: 2rem; }
-      .card { background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(15,23,42,0.08); padding: 24px; margin-bottom: 20px; }
-      input, textarea, button { font: inherit; }
-      input[type="text"], textarea { width: 100%; padding: 12px 14px; border: 1px solid #d1d5db; border-radius: 10px; margin-top: 8px; }
-      textarea { min-height: 120px; resize: vertical; }
-      .button-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
-      button { background: #2563eb; border: none; color: white; padding: 12px 18px; border-radius: 10px; cursor: pointer; }
-      button.secondary { background: #6b7280; }
-      .message { margin-bottom: 14px; padding: 16px; border-radius: 12px; }
-      .message.user { background: #e0f2fe; }
-      .message.assistant { background: #f3f4f6; }
-      .flash { padding: 12px 14px; background: #e2e8f0; border-radius: 10px; margin-bottom: 16px; }
-      .history-label { font-size: 0.95rem; color: #6b7280; margin-bottom: 8px; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Courier New', 'Courier', monospace;
+        background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+        color: #00d9ff;
+        min-height: 100vh;
+        overflow-x: hidden;
+        position: relative;
+      }
+
+      /* Animated background */
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+          radial-gradient(circle at 20% 50%, rgba(0, 217, 255, 0.05) 0%, transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(255, 0, 64, 0.03) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: 0;
+        animation: pulse 8s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; }
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        position: relative;
+        z-index: 1;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 60px;
+        animation: slideDown 0.6s ease-out;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      h1 {
+        font-size: 3.5rem;
+        margin-bottom: 10px;
+        color: #00d9ff;
+        text-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
+        letter-spacing: 3px;
+        animation: glow 3s ease-in-out infinite;
+      }
+
+      @keyframes glow {
+        0%, 100% {
+          text-shadow: 0 0 20px rgba(0, 217, 255, 0.3), 0 0 30px rgba(0, 217, 255, 0.1);
+        }
+        50% {
+          text-shadow: 0 0 30px rgba(0, 217, 255, 0.6), 0 0 50px rgba(0, 217, 255, 0.2);
+        }
+      }
+
+      header p {
+        font-size: 1.1rem;
+        color: #96f3ff;
+        letter-spacing: 1px;
+      }
+
+      .card {
+        background: rgba(26, 31, 58, 0.8);
+        border: 1px solid #00d9ff;
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 25px;
+        box-shadow: 0 0 30px rgba(0, 217, 255, 0.1), inset 0 0 20px rgba(0, 217, 255, 0.01);
+        backdrop-filter: blur(10px);
+        animation: fadeIn 0.8s ease-out;
+        position: relative;
+        overflow: hidden;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(0, 217, 255, 0.1), transparent);
+        animation: shimmer 6s infinite;
+      }
+
+      @keyframes shimmer {
+        0% { left: -100%; }
+        50% { left: 100%; }
+        100% { left: 100%; }
+      }
+
+      .card > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      label {
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 10px;
+        color: #00d9ff;
+        font-weight: bold;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
+
+      input[type="text"],
+      textarea,
+      select {
+        width: 100%;
+        padding: 14px 16px;
+        border: 2px solid #00d9ff;
+        border-radius: 8px;
+        background: rgba(10, 14, 39, 0.9);
+        color: #00d9ff;
+        font-family: 'Courier New', monospace;
+        font-size: 1rem;
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
+      }
+
+      input[type="text"]:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: #00ffff;
+        box-shadow: 0 0 20px rgba(0, 217, 255, 0.4), inset 0 0 10px rgba(0, 217, 255, 0.1);
+        background: rgba(10, 14, 39, 0.95);
+      }
+
+      input::placeholder,
+      textarea::placeholder {
+        color: #0088aa;
+      }
+
+      textarea {
+        min-height: 140px;
+        resize: vertical;
+      }
+
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      button {
+        font: inherit;
+        padding: 14px 24px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: bold;
+        letter-spacing: 1.5px;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        position: relative;
+        overflow: hidden;
+      }
+
+      button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.2);
+        transition: left 0.4s ease;
+        z-index: 0;
+      }
+
+      button:hover::before {
+        left: 100%;
+      }
+
+      button > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      button:active {
+        transform: scale(0.98);
+      }
+
+      button {
+        background: linear-gradient(135deg, #00d9ff, #00aacc);
+        color: #0a0e27;
+        box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
+      }
+
+      button:hover {
+        box-shadow: 0 0 40px rgba(0, 217, 255, 0.6);
+        transform: translateY(-2px);
+      }
+
+      button.secondary {
+        background: linear-gradient(135deg, #6b7280, #4b5563);
+        color: #ffffff;
+        box-shadow: 0 0 15px rgba(107, 114, 128, 0.3);
+      }
+
+      button.secondary:hover {
+        box-shadow: 0 0 30px rgba(107, 114, 128, 0.6);
+      }
+
+      .message {
+        margin-bottom: 16px;
+        padding: 16px;
+        border-radius: 8px;
+        border-left: 4px solid #00d9ff;
+        animation: slideIn 0.4s ease-out;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      .message.user {
+        background: rgba(0, 217, 255, 0.05);
+        border-left-color: #00aacc;
+      }
+
+      .message.assistant {
+        background: rgba(0, 150, 136, 0.05);
+        border-left-color: #00d9aa;
+      }
+
+      .message strong {
+        color: #00ffff;
+      }
+
+      .message div {
+        color: #96f3ff;
+        line-height: 1.6;
+      }
+
+      .flash {
+        padding: 16px 20px;
+        background: rgba(0, 217, 255, 0.1);
+        border: 2px solid #00d9ff;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        color: #00ffff;
+        font-weight: bold;
+        box-shadow: 0 0 20px rgba(0, 217, 255, 0.2);
+        animation: slideDown 0.5s ease-out;
+      }
+
+      .history-label {
+        font-size: 1.1rem;
+        color: #00d9ff;
+        margin-bottom: 16px;
+        font-weight: bold;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
+
+      .history-container {
+        max-height: 500px;
+        overflow-y: auto;
+        padding: 10px;
+        border: 1px solid rgba(0, 217, 255, 0.3);
+        border-radius: 8px;
+        background: rgba(10, 14, 39, 0.5);
+      }
+
+      .history-container::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .history-container::-webkit-scrollbar-track {
+        background: rgba(0, 217, 255, 0.1);
+        border-radius: 10px;
+      }
+
+      .history-container::-webkit-scrollbar-thumb {
+        background: #00d9ff;
+        border-radius: 10px;
+      }
+
+      .history-container::-webkit-scrollbar-thumb:hover {
+        background: #00ffff;
+      }
+
+      select {
+        appearance: none;
+        padding-right: 40px;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300d9ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 20px;
+      }
+
+      select option {
+        background: #1a1f3a;
+        color: #00d9ff;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 25px;
+        margin-bottom: 25px;
+      }
+
+      @media (max-width: 768px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        h1 {
+          font-size: 2rem;
+        }
+        .container {
+          padding: 20px 10px;
+        }
+      }
+
+      /* Glitch effect for important elements */
+      .glitch {
+        position: relative;
+      }
+
+      .glitch::before,
+      .glitch::after {
+        content: attr(data-text);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .glitch::before {
+        animation: glitch-1 2s infinite;
+        color: #ff0040;
+        z-index: -1;
+      }
+
+      .glitch::after {
+        animation: glitch-2 2s infinite;
+        color: #00ffff;
+        z-index: -2;
+      }
+
+      @keyframes glitch-1 {
+        0% {
+          clip-path: inset(40% 0 61% 0);
+          transform: translate(0);
+        }
+        20% {
+          clip-path: inset(92% 0 1% 0);
+          transform: translate(-5px, 5px);
+        }
+        40% {
+          clip-path: inset(43% 0 1% 0);
+          transform: translate(-5px, -5px);
+        }
+        60% {
+          clip-path: inset(25% 0 58% 0);
+          transform: translate(5px, -5px);
+        }
+        80% {
+          clip-path: inset(54% 0 7% 0);
+          transform: translate(5px, 5px);
+        }
+        100% {
+          clip-path: inset(58% 0 43% 0);
+          transform: translate(0);
+        }
+      }
+
+      @keyframes glitch-2 {
+        0% {
+          clip-path: inset(10% 0 85% 0);
+          transform: translate(0);
+        }
+        20% {
+          clip-path: inset(5% 0 58% 0);
+          transform: translate(5px, -5px);
+        }
+        40% {
+          clip-path: inset(77% 0 19% 0);
+          transform: translate(-5px, 5px);
+        }
+        60% {
+          clip-path: inset(40% 0 43% 0);
+          transform: translate(5px, 5px);
+        }
+        80% {
+          clip-path: inset(27% 0 58% 0);
+          transform: translate(-5px, -5px);
+        }
+        100% {
+          clip-path: inset(58% 0 43% 0);
+          transform: translate(0);
+        }
+      }
+
+      .status-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #00ff00;
+        margin-right: 8px;
+        animation: pulse-dot 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse-dot {
+        0%, 100% {
+          box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7);
+        }
+        50% {
+          box-shadow: 0 0 0 10px rgba(0, 255, 0, 0);
+        }
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <header>
-        <h1>OpenRouter Agent Mode</h1>
-        <p>Enter your OpenRouter API key and send the agent a task. The agent can open URLs, run searches, execute commands, and open files.</p>
+        <h1 class="glitch" data-text="⚡ NEURAL CONTROL SYSTEM">⚡ NEURAL CONTROL SYSTEM</h1>
+        <p><span class="status-indicator"></span>AI DESKTOP AGENT - VISION ENABLED</p>
       </header>
 
       {% with messages = get_flashed_messages() %}
@@ -38,6 +483,59 @@
         {% endif %}
       {% endwith %}
 
+      <div class="grid">
+        <div class="card">
+          <form action="/set_key" method="POST">
+            <label for="api_key">🔐 OPENROUTER API KEY</label>
+            <input id="api_key" name="api_key" type="text" value="{{ api_key }}" placeholder="sk-..." autocomplete="off" />
+            <div class="button-row">
+              <button type="submit">SAVE KEY</button>
+              <button type="submit" formaction="/clear" formmethod="post" class="secondary">RESET HISTORY</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <form action="/set_profile" method="POST">
+            <label for="profile">⚙️ AGENT PROFILE</label>
+            <select id="profile" name="profile">
+              {% for key, desc in profiles.items() %}
+                <option value="{{ key }}" {% if key == profile %}selected{% endif %}>{{ key | upper }}</option>
+              {% endfor %}
+            </select>
+            <div class="button-row">
+              <button type="submit">ACTIVATE PROFILE</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <form action="/chat" method="POST">
+          <label for="message">🎯 NEURAL COMMAND</label>
+          <textarea id="message" name="message" placeholder="e.g., Open YouTube and search for AI videos | Browse the web and analyze current trends | Start screen recording and interact with desktop"></textarea>
+          <div class="button-row">
+            <button type="submit">▶ EXECUTE COMMAND</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="history-label">📜 NEURAL LOG</div>
+        <div class="history-container">
+          {% if history %}
+            {% for item in history %}
+              <div class="message {{ item.role }}">
+                <strong>{{ item.role | upper }}:</strong>
+                <div>{{ item.content }}</div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p style="color: #0088aa; text-align: center; padding: 20px;">No neural activity yet. Send a command to begin.</p>
+          {% endif %}
+        </div>
+      </div>
+
       {% if pending_action %}
       <script>
         var action = {{ pending_action | tojson }};
@@ -47,57 +545,11 @@
           var searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(action.value);
           window.open(searchUrl, '_blank');
         }
-        // For other actions, they can't be executed client-side
       </script>
       {% endif %}
-
-      <div class="card">
-        <form action="/set_key" method="POST">
-          <label for="api_key">OpenRouter API Key</label>
-          <input id="api_key" name="api_key" type="text" value="{{ api_key }}" placeholder="sk-..." autocomplete="off" />
-          <div class="button-row">
-            <button type="submit">Save API Key</button>
-            <button type="submit" formaction="/clear" formmethod="post" class="secondary">Clear History</button>
-          </div>
-        </form>
-      </div>
-
-      <div class="card">
-        <form action="/set_profile" method="POST">
-          <label for="profile">Agent Profile</label>
-          <select id="profile" name="profile">
-            {% for key, desc in profiles.items() %}
-              <option value="{{ key }}" {% if key == profile %}selected{% endif %}>{{ key.capitalize() }}</option>
-            {% endfor %}
-          </select>
-          <div class="button-row">
-            <button type="submit">Set Profile</button>
-          </div>
-        </form>
-      </div>
-
-      <div class="card">
-        <form action="/chat" method="POST">
-          <label for="message">Ask the agent</label>
-          <textarea id="message" name="message" placeholder="Open https://example.com or search for coffee shops or run ls -la or open /path/to/file.txt"></textarea>
-          <div class="button-row">
-            <button type="submit">Send Task</button>
-          </div>
-        </form>
-      </div>
-
-      <div class="card">
-        <div class="history-label">Conversation history</div>
-        {% if history %}
-          {% for item in history %}
-            <div class="message {{ item.role }}">
-              <strong>{{ item.role.capitalize() }}:</strong>
-              <div>{{ item.content }}</div>
-            </div>
-          {% endfor %}
-        {% else %}
-          <p>No messages yet.</p>
-        {% endif %}
+    </div>
+  </body>
+</html>
       </div>
     </div>
   </body>
