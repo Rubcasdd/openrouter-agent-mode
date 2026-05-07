@@ -24,8 +24,6 @@ def ensure_dependencies():
 
 ensure_dependencies()
 
-import pyautogui
-import pytesseract
 from agent import OpenRouterAgent
 
 DEFAULT_MODEL = "tencent/hy3-preview:free"
@@ -74,10 +72,13 @@ def main():
         while True:
             # Take screenshot and add OCR to messages
             try:
+                import importlib
+                pyautogui = importlib.import_module("pyautogui")
+                pytesseract = importlib.import_module("pytesseract")
                 screenshot = pyautogui.screenshot()
                 text = pytesseract.image_to_string(screenshot)[:1000]  # Limit
                 screen_msg = f"Current screen text: {text}"
-            except:
+            except Exception:
                 screen_msg = "Screenshot failed."
 
             messages = [{"role": "system", "content": system_prompt}] + history + [{"role": "user", "content": screen_msg}]

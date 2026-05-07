@@ -1,10 +1,8 @@
+import importlib
 import json
 import re
 import subprocess
 import os
-import pyautogui
-import pytesseract
-from PIL import Image
 from openrouter import OpenRouter
 
 class OpenRouterAgent:
@@ -70,6 +68,18 @@ class OpenRouterAgent:
         action = action_dict["action"]
         value = action_dict.get("value")
 
+        def import_pyautogui():
+            try:
+                return importlib.import_module("pyautogui")
+            except Exception as exc:
+                raise RuntimeError("pyautogui is required for screen actions: " + str(exc))
+
+        def import_pytesseract():
+            try:
+                return importlib.import_module("pytesseract")
+            except Exception as exc:
+                raise RuntimeError("pytesseract is required for OCR: " + str(exc))
+
         if action == "open_url":
             import webbrowser
             webbrowser.open(value, new=2)
@@ -112,6 +122,8 @@ class OpenRouterAgent:
                 return f"Failed to create file: {str(e)}"
         elif action == "take_screenshot":
             try:
+                pyautogui = import_pyautogui()
+                pytesseract = import_pytesseract()
                 screenshot = pyautogui.screenshot()
                 screenshot_path = "/tmp/screenshot.png"
                 screenshot.save(screenshot_path)
@@ -121,6 +133,7 @@ class OpenRouterAgent:
                 return f"Failed to take screenshot: {str(e)}"
         elif action == "click":
             try:
+                pyautogui = import_pyautogui()
                 x, y = value["x"], value["y"]
                 pyautogui.click(x, y)
                 return f"Clicked at ({x}, {y})"
@@ -128,6 +141,7 @@ class OpenRouterAgent:
                 return f"Failed to click: {str(e)}"
         elif action == "type_text":
             try:
+                pyautogui = import_pyautogui()
                 pyautogui.typewrite(value)
                 return f"Typed: {value}"
             except Exception as e:
