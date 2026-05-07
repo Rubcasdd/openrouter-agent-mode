@@ -17,6 +17,8 @@ A simple local CLI agent that uses OpenRouter to process instructions and perfor
 - Analyze the screen with OCR
 - Click on screen coordinates
 - Type text on the keyboard
+- Execute Python code for advanced tasks
+- Full desktop control via shell commands and Python execution
 - Keep a conversation history during the session
 
 ## Getting started
@@ -62,6 +64,7 @@ python app.py
 - `Analyze the screen and summarize the visible text`
 - `Click on the button at x=500, y=300`
 - `Type 'Hello World' in the text field`
+- `Execute Python code: print('Hello from Python!')`
 
 ## Notes
 

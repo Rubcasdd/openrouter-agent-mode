@@ -3,6 +3,7 @@ import json
 import re
 import subprocess
 import os
+import sys
 import tempfile
 from openrouter import OpenRouter
 
@@ -184,6 +185,15 @@ class OpenRouterAgent:
                 return f"Typed: {value}"
             except Exception as e:
                 return f"Failed to type: {str(e)}"
+        elif action == "execute_python":
+            try:
+                result = subprocess.run([sys.executable, "-c", value], capture_output=True, text=True, timeout=30)
+                output = result.stdout + result.stderr
+                return f"Python executed: {output.strip()}"
+            except subprocess.TimeoutExpired:
+                return "Python execution timed out"
+            except Exception as e:
+                return f"Python execution failed: {str(e)}"
         elif action == "done":
             return "Task finished."
         else:
