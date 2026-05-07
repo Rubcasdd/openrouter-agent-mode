@@ -5,19 +5,20 @@ import sys
 
 
 def ensure_dependencies():
-    # Only check pyautogui if DISPLAY is available
-    if os.environ.get('DISPLAY'):
-        required = ["pyautogui", "PIL", "openrouter"]
-    else:
-        required = ["PIL", "openrouter"]
-        print("Warning: No DISPLAY detected. Skipping pyautogui dependency check.")
-    
+    # Always check all dependencies, but handle pyautogui gracefully
+    required = ["pyautogui", "PIL", "openrouter"]
     missing = []
     for package in required:
         try:
             importlib.import_module(package)
         except ImportError:
             missing.append(package)
+        except Exception as e:
+            # pyautogui might fail due to missing DISPLAY - that's ok for now
+            if package == "pyautogui":
+                print("Warning: pyautogui import failed (may need DISPLAY): " + str(e))
+            else:
+                missing.append(package)
 
     if missing:
         print("Installing missing dependencies: " + ", ".join(missing))
@@ -30,12 +31,8 @@ def ensure_dependencies():
 
 ensure_dependencies()
 
-# Only import pyautogui-related modules if DISPLAY is available
-if os.environ.get('DISPLAY'):
-    from agent import OpenRouterAgent
-else:
-    print("Warning: No DISPLAY environment variable set. Running in limited mode.")
-    OpenRouterAgent = None
+# Always import OpenRouterAgent - pyautogui errors will be handled at runtime
+from agent import OpenRouterAgent
 
 DEFAULT_MODEL = "baidu/qianfan-ocr-fast:free"
 FALLBACK_MODELS = ["baidu/qianfan-ocr-fast:free", "tencent/hy3-preview:free"]
@@ -105,30 +102,38 @@ def main():
         print("Starting multi-step task...")
 
         while True:
-            # Take screenshot and send as image to AI
+            # Take screenshot and send as image to AI (only if DISPLAY available)
+            image_message = None
             try:
-                import importlib
-                pyautogui = importlib.import_module("pyautogui")
-                screenshot = pyautogui.screenshot()
-                
-                # Encode to base64
-                image_base64 = agent.encode_pil_image_to_base64(screenshot)
-                mouse_pos = agent.get_mouse_position()
-                
-                screen_msg = "Current screen image analyzed. Mouse at: " + str(mouse_pos) + ". Analyze the screen and decide what to do next."
-                
-                # Prepare message with image for OpenRouter vision API
-                image_message = {
-                    "role": "user", 
-                    "content": [
-                        {"type": "text", "text": screen_msg},
-                        {"type": "image_url", "image_url": {"url": "data:image/png;base64," + image_base64}}
-                    ]
-                }
+                if os.environ.get('DISPLAY'):
+                    import importlib
+                    pyautogui = importlib.import_module("pyautogui")
+                    screenshot = pyautogui.screenshot()
+                    
+                    # Encode to base64
+                    image_base64 = agent.encode_pil_image_to_base64(screenshot)
+                    mouse_pos = agent.get_mouse_position()
+                    
+                    screen_msg = "Current screen image analyzed. Mouse at: " + str(mouse_pos) + ". Analyze the screen and decide what to do next."
+                    
+                    # Prepare message with image for OpenRouter vision API
+                    image_message = {
+                        "role": "user", 
+                        "content": [
+                            {"type": "text", "text": screen_msg},
+                            {"type": "image_url", "image_url": {"url": "data:image/png;base64," + image_base64}}
+                        ]
+                    }
+                else:
+                    print("No DISPLAY - skipping screenshot")
+                    image_message = {"role": "user", "content": "No display available for screenshot."}
             except Exception as e:
-                print(f"Screenshot error: {e}")
+                print("Screenshot error: " + str(e))
                 image_message = {"role": "user", "content": "Screenshot failed."}
 
+            if not image_message:
+                image_message = {"role": "user", "content": "No screen data available."}
+            
             messages = [{"role": "system", "content": system_prompt}] + history + [image_message]
 
             try:

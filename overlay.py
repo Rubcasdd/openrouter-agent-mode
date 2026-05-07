@@ -15,6 +15,7 @@ from io import BytesIO
 
 
 def ensure_dependencies():
+    # Always check all dependencies, but handle pyautogui gracefully
     required = ["pyautogui", "PIL", "openrouter"]
     missing = []
     for package in required:
@@ -22,6 +23,12 @@ def ensure_dependencies():
             importlib.import_module(package)
         except ImportError:
             missing.append(package)
+        except Exception as e:
+            # pyautogui might fail due to missing DISPLAY - that's ok for now
+            if package == "pyautogui":
+                print("Warning: pyautogui import failed (may need DISPLAY): " + str(e))
+            else:
+                missing.append(package)
 
     if missing:
         print("Installing missing dependencies: " + ", ".join(missing))
