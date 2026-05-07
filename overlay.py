@@ -167,7 +167,7 @@ class OverlayAgent:
     def log_message(self, message, tag="info"):
         """Add timestamped message to output"""
         timestamp = time.strftime("%H:%M:%S")
-        self.output_text.insert(tk.END, f"[{timestamp}] ", "info")
+        self.output_text.insert(tk.END, "[" + timestamp + "] ", "info")
         self.output_text.insert(tk.END, message + "\n", tag)
         self.output_text.see(tk.END)
         self.output_text.update()
@@ -179,13 +179,13 @@ class OverlayAgent:
             x, y = pyautogui.position()
             self.mouse_x = x
             self.mouse_y = y
-            self.mouse_label.config(text=f"({x}, {y})")
+            self.mouse_label.config(text="(" + str(x) + ", " + str(y) + ")")
         except:
             pass
         
     def run_agent_loop(self, user_task):
         """Main agent execution loop"""
-        self.log_message(f"Task: {user_task}", "action")
+        self.log_message("Task: " + str(user_task), "action")
         self.status_label.config(text="● ACTIVE", fg="#00ff00")
         
         history = [{"role": "user", "content": user_task}]
@@ -194,7 +194,7 @@ class OverlayAgent:
         
         while self.running and step_count < max_steps:
             step_count += 1
-            self.log_message(f"--- Step {step_count} ---", "info")
+            self.log_message("--- Step " + str(step_count) + " ---", "info")
             
             # Update mouse position
             self.update_mouse_position()
@@ -208,14 +208,14 @@ class OverlayAgent:
                 image_base64 = self.agent.encode_pil_image_to_base64(screenshot)
                 mouse_pos = self.agent.get_mouse_position()
                 
-                screen_msg = f"Current screen. Mouse at: {mouse_pos}. Analyze and decide next action."
+                screen_msg = "Current screen. Mouse at: " + str(mouse_pos) + ". Analyze and decide next action."
                 
-                # Prepare message with image
+                # Prepare message with image for OpenRouter vision API
                 image_message = {
                     "role": "user",
                     "content": [
                         {"type": "text", "text": screen_msg},
-                        {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": image_base64}}
+                        {"type": "image_url", "image_url": {"url": "data:image/png;base64," + image_base64}}
                     ]
                 }
                 
@@ -232,7 +232,7 @@ class OverlayAgent:
                 action = self.agent.parse_action(assistant_text)
                 if action:
                     action_name = action.get('action', 'unknown')
-                    self.log_message(f"Action: {action_name}", "action")
+                    self.log_message("Action: " + str(action_name), "action")
                     
                     if action_name == 'done':
                         self.log_message("Task completed!", "success")
@@ -240,8 +240,8 @@ class OverlayAgent:
                     
                     # Execute action
                     result = self.agent.execute_action(action)
-                    self.log_message(f"Result: {result[:100]}", "success")
-                    history.append({"role": "user", "content": f"Executed: {result}"})
+                    self.log_message("Result: " + str(result[:100]), "success")
+                    history.append({"role": "user", "content": "Executed: " + str(result)})
                     
                     self.action_history.append(action_name)
                     self.action_count_label.config(text=str(len(self.action_history)))
