@@ -1,4 +1,29 @@
+import importlib
 import os
+import subprocess
+import sys
+
+
+def ensure_dependencies():
+    required = ["pyautogui", "pytesseract", "PIL", "openrouter"]
+    missing = []
+    for package in required:
+        try:
+            importlib.import_module(package)
+        except ImportError:
+            missing.append(package)
+
+    if missing:
+        print(f"Installing missing dependencies: {', '.join(missing)}")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+        except subprocess.CalledProcessError as exc:
+            print("Failed to install dependencies. Please run 'pip install -r requirements.txt' manually.")
+            raise SystemExit(exc)
+
+
+ensure_dependencies()
+
 import pyautogui
 import pytesseract
 from agent import OpenRouterAgent

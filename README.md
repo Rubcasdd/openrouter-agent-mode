@@ -58,5 +58,6 @@ python app.py
 
 ## Notes
 
-- This app stores your API key only in the current browser session.
-- The agent is local and designed for simple web actions.
+- This app stores your API key only in memory for the current session.
+- If dependencies are missing, `app.py` will attempt to install them automatically from `requirements.txt`.
+- The agent is local and designed for desktop automation and screen-aware actions.
