@@ -1,10 +1,9 @@
 # openrouter-agent-mode
 
-A simple local agent web app that uses OpenRouter to process instructions and perform local actions such as opening websites or running a search.
+A simple local CLI agent that uses OpenRouter to process instructions and perform local actions such as opening websites, running commands, or creating files.
 
 ## Features
 
-- Enter your OpenRouter API key in a local browser session
 - Choose from different agent profiles (Assistant, Coder, Agent)
 - Send instructions to an agent powered by OpenRouter
 - Automatically open URLs and search results in your default browser
@@ -28,14 +27,19 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-3. Run the app:
+3. Set your OpenRouter API key (optional, or enter when prompted):
+
+```bash
+export OPENROUTER_API_KEY=your_api_key_here
+```
+
+4. Run the app:
 
 ```bash
 python app.py
 ```
 
-4. Open your browser to `http://127.0.0.1:5000`
-5. Enter your OpenRouter API key and start sending tasks.
+5. Choose a profile and start chatting. Type 'exit' or 'quit' to stop.
 
 ## Usage examples
 
