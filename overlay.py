@@ -230,105 +230,45 @@ class OverlayAgent:
                     {"role": "system", "content": self.system_prompt}
                 ] + history + [image_message]
                 
-                # Get AI response
+                # Step 1: Get conversational response from AI
                 self.log_message("Analyzing screen...", "info")
                 assistant_text = self.agent.chat(messages).strip()
                 history.append({"role": "assistant", "content": assistant_text})
                 
-                # Parse action
-                action = self.agent.parse_action(assistant_text)
-                if action:
-                    action_name = action.get('action', 'unknown')
-                    self.log_message("Action: " + str(action_name), "action")
-                    
-                    if action_name == 'done':
-                        self.log_message("Task completed!", "success")
+                # Step 2: Make separate API call to extract action
+                action_text = self.agent.get_action_from_response(assistant_text, self.system_prompt)
+                
+                if action_text:
+                    # Parse action
+                    action = self.agent.parse_action(action_text)
+                    if action:
+                        action_name = action.get('action', 'unknown')
+                        self.log_message("Action: " + str(action_name), "action")
+                        
+                        if action_name == 'done':
+                            self.log_message("Task completed!", "success")
+                            break
+                        
+                        # Execute action
+                        result = self.agent.execute_action(action)
+                        self.log_message("Result: " + str(result[:100]), "success")
+                        history.append({"role": "user", "content": "Executed: " + str(result)})
+                        
+                        self.action_history.append(action_name)
+                        self.action_count_label.config(text=str(len(self.action_history)))
+                        
+                        # Small delay for smooth animation
+                        time.sleep(0.5)
+                    else:
+                        self.log_message("Could not parse action from response", "warning")
                         break
-                    
-                    # Execute action
-                    result = self.agent.execute_action(action)
-                    self.log_message("Result: " + str(result[:100]), "success")
-                    history.append({"role": "user", "content": "Executed: " + str(result)})
-                    
-                    self.action_history.append(action_name)
-                    self.action_count_label.config(text=str(len(self.action_history)))
-                    
-                    # Small delay for smooth animation
-                    time.sleep(0.5)
                 else:
-                    self.log_message("Could not parse action", "warning")
+                    self.log_message("Could not extract action from AI response", "warning")
                     break
-                    
+
             except Exception as e:
-                self.log_message(f"Error: {str(e)}", "error")
+                self.log_message("Error in agent loop: " + str(e), "error")
                 break
-        
-        if step_count >= max_steps:
-            self.log_message("Max steps reached", "warning")
-        
+
         self.status_label.config(text="○ READY", fg="#00ff00")
         self.start_button.config(state=tk.NORMAL)
-        
-    def start_agent(self):
-        """Start agent task"""
-        self.start_button.config(state=tk.DISABLED)
-        
-        # Create a simple task input window
-        task_window = tk.Toplevel(self.root)
-        task_window.title("Input Task")
-        task_window.geometry("400x150")
-        task_window.configure(bg="#0a0e27")
-        
-        tk.Label(task_window, text="Enter task:", bg="#0a0e27", fg="#00d9ff",
-                font=tkfont.Font(family="Courier", size=10)).pack(pady=10)
-        
-        task_entry = tk.Entry(task_window, font=tkfont.Font(family="Courier", size=10),
-                             bg="#1a1f3a", fg="#ffffff", insertbackground="#00d9ff")
-        task_entry.pack(fill=tk.X, padx=20, pady=10)
-        task_entry.focus()
-        
-        def execute_task():
-            task = task_entry.get().strip()
-            if task:
-                task_window.destroy()
-                # Run agent in background thread
-                thread = threading.Thread(target=self.run_agent_loop, args=(task,), daemon=True)
-                thread.start()
-            else:
-                self.start_button.config(state=tk.NORMAL)
-        
-        tk.Button(task_window, text="Execute", command=execute_task,
-                 bg="#00d9ff", fg="#0a0e27", font=tkfont.Font(family="Courier", size=10, weight="bold"),
-                 relief=tk.FLAT, padx=20, pady=8).pack(pady=10)
-        
-        task_entry.bind('<Return>', lambda e: execute_task())
-        
-    def stop_overlay(self):
-        """Stop overlay"""
-        self.running = False
-        self.log_message("Shutting down...", "warning")
-        self.root.after(500, self.root.quit)
-        
-    def run(self):
-        """Start the overlay"""
-        self.root.mainloop()
-
-
-def start_overlay(api_key, system_prompt):
-    """Start the desktop overlay"""
-    overlay = OverlayAgent(api_key, system_prompt)
-    overlay.run()
-
-
-if __name__ == "__main__":
-    import os
-    api_key = os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
-        api_key = input("Enter OpenRouter API key: ")
-    
-    system_prompt = (
-        "You are an advanced AI desktop agent. Click on things, analyze results, and complete tasks. "
-        "Respond with JSON actions only."
-    )
-    
-    start_overlay(api_key, system_prompt)

@@ -282,3 +282,24 @@ class OpenRouterAgent:
             return "Task finished."
         else:
             return f"Unknown action: {action}"
+
+    def get_action_from_response(self, ai_response, system_prompt):
+        """Make separate API call to extract action from AI response"""
+        print("Extracting action from AI response")
+        
+        action_prompt = str(system_prompt) + "\n\nBased on the following response, respond with ONLY a JSON action object (or {\"action\":\"done\"} if task is complete):\n\n" + str(ai_response)
+        
+        messages = [{"role": "user", "content": action_prompt}]
+        
+        try:
+            response = self.client.chat.send(
+                model=self.model,
+                messages=messages,
+                stream=False,
+            )
+            action_text = self._extract_content(response.choices[0].message.content)
+            print("Action extracted: " + str(action_text))
+            return action_text
+        except Exception as e:
+            print("Error extracting action: " + str(e))
+            return None

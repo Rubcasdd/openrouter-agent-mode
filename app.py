@@ -137,23 +137,31 @@ def main():
             messages = [{"role": "system", "content": system_prompt}] + history + [image_message]
 
             try:
+                # Step 1: Get conversational response from AI
                 assistant_text = agent.chat(messages).strip()
                 print("AI: " + assistant_text)
                 history.append({"role": "assistant", "content": assistant_text})
-
-                action = agent.parse_action(assistant_text)
-                if action:
-                    if action['action'] == 'done':
-                        print("Task completed.")
+                
+                # Step 2: Make separate API call to extract action
+                action_text = agent.get_action_from_response(assistant_text, system_prompt)
+                
+                if action_text:
+                    action = agent.parse_action(action_text)
+                    if action:
+                        if action['action'] == 'done':
+                            print("Task completed.")
+                            break
+                        result = agent.execute_action(action)
+                        print("Executed: " + str(result))
+                        history.append({"role": "user", "content": "Executed: " + str(result)})
+                    else:
+                        print("No action parsed from response.")
                         break
-                    result = agent.execute_action(action)
-                    print("Executed: " + str(result))
-                    history.append({"role": "user", "content": "Executed: " + str(result)})
                 else:
-                    print("No action parsed.")
+                    print("Could not extract action from AI response.")
                     break
             except Exception as e:
-                print(f"Error: {e}")
+                print("Error: " + str(e))
                 break
 
 if __name__ == "__main__":
