@@ -43,8 +43,9 @@ class UnifiedAgentCoordinator:
         print("\nInitializing all AI systems...")
         
         # Initialize all agents
+        # Use NVIDIA Nemotron 3 Super (free) as main AI
         self.agents["multi_agent"] = MultiAgentSystem(api_key=api_key)
-        self.agents["single_agent"] = OpenRouterAgent(api_key=api_key)
+        self.agents["single_agent"] = OpenRouterAgent(api_key=api_key, model="nvidia/nemotron-3-super:free")
         self.agents["web_nav"] = MultiAgentSystem(api_key=api_key)
         self.agents["screenshot_mgr"] = ScreenshotManager()
         
@@ -195,14 +196,17 @@ class UnifiedAgentCoordinator:
         # Build unified analysis prompt
         analysis_prompt = self._build_analysis_prompt()
         
-        # Get final recommendation from main AI
+        # Get final recommendation from NVIDIA Nemotron 3 Super (free)
         try:
+            # Use NVIDIA Nemotron 3 Super for final unified recommendation
+            nemotron_agent = OpenRouterAgent(api_key=self.api_key, model="nvidia/nemotron-3-super:free")
+            
             messages = [
-                {"role": "system", "content": "You are a master AI coordinator. Analyze inputs from 4 different AI systems and provide a unified, optimal solution."},
+                {"role": "system", "content": "You are NVIDIA Nemotron 3 Super, a master AI coordinator. Analyze inputs from 4 different AI systems and provide a unified, optimal solution."},
                 {"role": "user", "content": analysis_prompt}
             ]
             
-            final_response = self.agents["single_agent"].chat(messages)
+            final_response = nemotron_agent.chat(messages)
             self.final_recommendation = final_response
             
             print("\n" + "="*70)

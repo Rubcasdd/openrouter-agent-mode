@@ -11,7 +11,7 @@ from io import BytesIO
 from openrouter import OpenRouter
 
 class OpenRouterAgent:
-    def __init__(self, api_key: str, model: str = "tencent/hy3-preview:free"):
+    def __init__(self, api_key: str, model: str = "nvidia/nemotron-3-super:free"):
         self.client = OpenRouter(api_key=api_key)
         self.model = model
         self.action_history = []

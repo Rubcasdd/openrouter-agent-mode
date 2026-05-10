@@ -58,6 +58,8 @@ def main():
     2. Single Agent Mode (Traditional mode)
     3. Overlay Mode (Desktop visual interface)
     4. Web Navigation Mode (Browser automation)
+    
+    Main AI: NVIDIA Nemotron 3 Super (free)
     """
     
     # Single API Key Prompt
