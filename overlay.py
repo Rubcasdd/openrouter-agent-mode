@@ -272,3 +272,32 @@ class OverlayAgent:
 
         self.status_label.config(text="○ READY", fg="#00ff00")
         self.start_button.config(state=tk.NORMAL)
+    
+    def start_agent(self):
+        """Start the agent with a task"""
+        self.start_button.config(state=tk.DISABLED)
+        task = input("Enter task for agent: ")
+        
+        if task:
+            # Run agent loop in a separate thread
+            agent_thread = threading.Thread(target=self.run_agent_loop, args=(task,))
+            agent_thread.daemon = True
+            agent_thread.start()
+    
+    def stop_overlay(self):
+        """Stop the overlay"""
+        self.running = False
+        self.root.destroy()
+    
+    def run_ui_loop(self):
+        """Run the tkinter UI main loop"""
+        self.root.mainloop()
+
+
+def start_overlay(api_key, system_prompt, screenshot_mgr=None):
+    """Start the overlay agent GUI"""
+    agent = OverlayAgent(api_key, system_prompt)
+    if screenshot_mgr:
+        agent.screenshot_mgr = screenshot_mgr
+    agent.run_ui_loop()
+
