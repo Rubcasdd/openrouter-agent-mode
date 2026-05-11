@@ -43,9 +43,8 @@ class UnifiedAgentCoordinator:
         print("\nInitializing all AI systems...")
         
         # Initialize all agents
-        # Use NVIDIA Nemotron 3 Super (free) as main AI
         self.agents["multi_agent"] = MultiAgentSystem(api_key=api_key)
-        self.agents["single_agent"] = OpenRouterAgent(api_key=api_key, model="nvidia/nemotron-3-super:free")
+        self.agents["single_agent"] = OpenRouterAgent(api_key=api_key)
         self.agents["web_nav"] = MultiAgentSystem(api_key=api_key)
         self.agents["screenshot_mgr"] = ScreenshotManager()
         
@@ -157,11 +156,130 @@ class UnifiedAgentCoordinator:
             self.results["overlay"] = {"status": "error", "error": str(e), "weight": 0}
     
     def _run_web_nav_mode(self, task: str):
-        """Mode 4: Web Navigation Mode"""
+        """Mode 4: Web Navigation Mode - Executes browser automation"""
         try:
-            print("[4/4] 🌐 Web Navigation Mode: Planning browser automation...")
+            print("[4/4] 🌐 Web Navigation Mode: Executing browser automation...")
             
-            # Get web navigation strategy from specialist
+            # Import browser automation
+            from browser_automation import AdvancedBrowserAutomation
+            import asyncio
+            
+            # Create browser automation instance
+            browser = AdvancedBrowserAutomation()
+            
+            # Plan the task using web navigator AI
+            strategy = self.agents["multi_agent"].get_agent_response(
+                "web_navigator",
+                f"You are a web navigation expert. Given this task: '{task}', provide a JSON array of browser automation steps to accomplish it. Each step should have: action (goto, click, fill, extract, etc.), selector (if needed), text/value (if needed), and optional description. Focus on finding information and providing actionable results."
+            )
+            
+            # Try to parse strategy as JSON steps
+            import json
+            try:
+                # Extract JSON from strategy if it's wrapped in text
+                if '[' in strategy and ']' in strategy:
+                    json_start = strategy.find('[')
+                    json_end = strategy.rfind(']') + 1
+                    json_str = strategy[json_start:json_end]
+                    steps = json.loads(json_str)
+                else:
+                    # Fallback: create basic steps
+                    steps = [
+                        {"action": "goto", "url": "https://www.google.com", "description": "Navigate to Google"},
+                        {"action": "fill", "selector": 'input[name="q"]', "text": task, "description": "Search for the task"},
+                        {"action": "click", "selector": 'input[name="btnK"]', "description": "Click search button"},
+                        {"action": "wait", "ms": 2000, "description": "Wait for results"},
+                        {"action": "extract", "selector": 'h3', "description": "Extract search result titles"}
+                    ]
+            except:
+                # Default steps if parsing fails
+                steps = [
+                    {"action": "goto", "url": "https://www.google.com", "description": "Navigate to Google"},
+                    {"action": "fill", "selector": 'input[name="q"]', "text": task, "description": "Search for the task"},
+                    {"action": "click", "selector": 'input[name="btnK"]', "description": "Click search button"},
+                    {"action": "wait", "ms": 2000, "description": "Wait for results"},
+                    {"action": "extract", "selector": 'h3', "description": "Extract search result titles"}
+                ]
+            
+            # Execute browser automation
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(browser.multi_step_task(steps))
+            loop.close()
+            
+            # Format results for user interaction
+            if result.get("completed") and result.get("history"):
+                # Extract useful information from results
+                extracted_content = []
+                for step_result in result["history"]:
+                    if step_result.get("result") and isinstance(step_result["result"], str):
+                        extracted_content.append(step_result["result"])
+                
+                # Take a screenshot of the current page for publishing
+                try:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    screenshot_result = loop.run_until_complete(browser.take_and_return_screenshot())
+                    loop.close()
+                    screenshot_available = screenshot_result.get("success", False)
+                    screenshot_data = screenshot_result.get("data_url") if screenshot_available else None
+                except Exception as e:
+                    print(f"      ⚠️  Screenshot capture failed: {str(e)}")
+                    screenshot_available = False
+                    screenshot_data = None
+                
+                # Create actionable response with screenshot and publishing info
+                actionable_response = f"""🔍 **Web Navigation Results for: {task}**
+
+**Steps Executed:** {result['steps_executed']}
+**Status:** {'✅ Completed' if result['completed'] else '❌ Failed'}
+**Screenshot:** {'📸 Captured' if screenshot_available else '❌ Failed'}
+
+**Findings:**
+{chr(10).join(['• ' + item for item in extracted_content[:5]])}
+
+**Suggested Actions:**
+1. Open browser to review results
+2. Click on relevant links from search results
+3. Extract specific information from found pages
+4. Navigate to specific websites mentioned
+5. {'View captured screenshot' if screenshot_available else 'Screenshot not available'}
+6. **Publish results** - Share findings with others
+
+**To interact:** You can ask me to:
+- Open specific URLs
+- Click on buttons/links by text
+- Fill forms on websites
+- Extract information from pages
+- Take screenshots of interesting content
+- Publish/share these results"""
+                
+                self.results["web_nav"] = {
+                    "status": "success",
+                    "data": {
+                        "response": actionable_response,
+                        "raw_result": result,
+                        "screenshot_available": screenshot_available,
+                        "screenshot_data": screenshot_data,
+                        "actionable": True,
+                        "suggested_next_steps": [
+                            "Open browser to review results",
+                            "Click on relevant links", 
+                            "Extract specific information",
+                            "Navigate to specific websites",
+                            "View captured screenshot" if screenshot_available else "Screenshot capture failed",
+                            "Publish/share these results"
+                        ]
+                    },
+                    "weight": 0.25  # 25% weight
+                }
+                print("      ✓ Web Navigation execution complete with screenshot")
+            else:
+                raise Exception("Browser automation failed to produce results")
+                
+        except Exception as e:
+            print(f"      ✗ Error: {str(e)}")
+            # Fallback to planning mode if execution fails
             strategy = self.agents["multi_agent"].get_agent_response(
                 "web_navigator",
                 f"You are a web navigation expert. Plan how to accomplish this task using browser automation: {task}"
@@ -171,14 +289,12 @@ class UnifiedAgentCoordinator:
                 "status": "success",
                 "data": {
                     "strategy": strategy,
-                    "automation_ready": True
+                    "automation_ready": True,
+                    "fallback": True
                 },
                 "weight": 0.25  # 25% weight
             }
-            print("      ✓ Web Navigation analysis complete")
-        except Exception as e:
-            print(f"      ✗ Error: {str(e)}")
-            self.results["web_nav"] = {"status": "error", "error": str(e), "weight": 0}
+            print("      ✓ Web Navigation planning complete (fallback)")
     
     def _analyze_and_recommend(self):
         """Analyze all results and provide unified recommendation"""
@@ -196,17 +312,14 @@ class UnifiedAgentCoordinator:
         # Build unified analysis prompt
         analysis_prompt = self._build_analysis_prompt()
         
-        # Get final recommendation from NVIDIA Nemotron 3 Super (free)
+        # Get final recommendation from main AI
         try:
-            # Use NVIDIA Nemotron 3 Super for final unified recommendation
-            nemotron_agent = OpenRouterAgent(api_key=self.api_key, model="nvidia/nemotron-3-super:free")
-            
             messages = [
-                {"role": "system", "content": "You are NVIDIA Nemotron 3 Super, a master AI coordinator. Analyze inputs from 4 different AI systems and provide a unified, optimal solution."},
+                {"role": "system", "content": "You are a master AI coordinator. Analyze inputs from 4 different AI systems and provide a unified, optimal solution."},
                 {"role": "user", "content": analysis_prompt}
             ]
             
-            final_response = nemotron_agent.chat(messages)
+            final_response = self.agents["single_agent"].chat(messages)
             self.final_recommendation = final_response
             
             print("\n" + "="*70)

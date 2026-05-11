@@ -6,6 +6,8 @@ button clicking, content extraction, and dynamic waits
 
 import asyncio
 import json
+import base64
+from datetime import datetime
 from typing import List, Dict, Any
 
 
@@ -186,6 +188,27 @@ class AdvancedBrowserAutomation:
         """Take a screenshot"""
         await self.page.screenshot(path=path)
         return f"Screenshot saved to {path}"
+    
+    async def take_and_return_screenshot(self) -> Dict[str, Any]:
+        """Take a screenshot and return it as base64 for immediate use"""
+        # Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        screenshot_path = f"/tmp/browser_screenshot_{timestamp}.png"
+        
+        # Take screenshot
+        await self.page.screenshot(path=screenshot_path, full_page=True)
+        
+        # Read and encode as base64
+        with open(screenshot_path, "rb") as image_file:
+            base64_data = base64.b64encode(image_file.read()).decode('utf-8')
+        
+        return {
+            "success": True,
+            "screenshot_path": screenshot_path,
+            "base64": base64_data,
+            "data_url": f"data:image/png;base64,{base64_data}",
+            "timestamp": timestamp
+        }
     
     async def _click_link_by_text(self, link_text: str) -> str:
         """Click a link by its text content"""

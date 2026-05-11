@@ -6,7 +6,7 @@ This document outlines all improvements made to the OpenRouter Agent Mode system
 
 1. ✅ Downloads all overlay requirements when starting app.py
 2. ✅ Screenshot functionality always works with fallback mechanisms
-3. ✅ Main AI (hy3) gets responses from other AIs to get best ideas
+3. ✅ Main AI (NVIDIA Nemotron 3 Super) gets responses from other AIs to get best ideas
 4. ✅ AI roles designed to fix problems, answer questions, complete tasks, visit websites
 5. ✅ Multi-step browser automation and website interaction
 6. ✅ Multiple free AI models from OpenRouter integrated

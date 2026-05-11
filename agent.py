@@ -11,21 +11,54 @@ from io import BytesIO
 from openrouter import OpenRouter
 
 class OpenRouterAgent:
-    def __init__(self, api_key: str, model: str = "nvidia/nemotron-3-super:free"):
+    def __init__(self, api_key: str, model: str = "nvidia/nemotron-3-super-120b-a12b:free"):
         self.client = OpenRouter(api_key=api_key)
         self.model = model
         self.action_history = []
+        self.reasoning_tokens = 0
 
-    def chat(self, messages):
-        print("Calling chat.send")
-        response = self.client.chat.send(
-            model=self.model,
-            messages=messages,
-            stream=False,
-        )
-        print("Response received")
-        content = self._extract_content(response.choices[0].message.content)
-        return content
+    def chat(self, messages, stream: bool = False):
+        """Send chat message to OpenRouter with optional streaming"""
+        print(f"Calling chat.send (streaming={stream})")
+        try:
+            response = self.client.chat.send(
+                model=self.model,
+                messages=messages,
+                stream=stream,
+            )
+            
+            if stream:
+                # Handle streaming response
+                content = ""
+                reasoning_tokens = 0
+                for chunk in response:
+                    if hasattr(chunk, 'choices') and chunk.choices:
+                        delta = chunk.choices[0].delta if hasattr(chunk.choices[0], 'delta') else None
+                        if delta and hasattr(delta, 'content') and delta.content:
+                            content += delta.content
+                    
+                    # Extract reasoning tokens from usage
+                    if hasattr(chunk, 'usage') and chunk.usage:
+                        if hasattr(chunk.usage, 'reasoningTokens'):
+                            reasoning_tokens = chunk.usage.reasoningTokens
+                
+                self.reasoning_tokens = reasoning_tokens
+                print(f"Response received (reasoning tokens: {reasoning_tokens})")
+                return content
+            else:
+                # Handle non-streaming response
+                print("Response received")
+                content = self._extract_content(response.choices[0].message.content)
+                
+                # Extract reasoning tokens if available
+                if hasattr(response, 'usage') and response.usage:
+                    if hasattr(response.usage, 'reasoningTokens'):
+                        self.reasoning_tokens = response.usage.reasoningTokens
+                
+                return content
+        except Exception as e:
+            print(f"Error in chat: {str(e)}")
+            raise
     
     def encode_image_to_base64(self, image_path):
         """Convert image file to base64 for API"""

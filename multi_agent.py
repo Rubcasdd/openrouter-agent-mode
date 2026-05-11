@@ -18,11 +18,11 @@ class MultiAgentSystem:
     
     # Available models from OpenRouter - each optimized for different tasks
     AVAILABLE_MODELS = {
-        "problem_solver": "nvidia/nemotron-3-super:free",      # Problem analysis and decomposition
-        "answerer": "openai/gpt-oss-120b:free",                 # General knowledge and explanations
-        "task_executor": "poolside/laguna-m1:free",             # Complex task planning
-        "web_navigator": "z-ai/glm-4.5-air:free",               # Web browsing optimization
-        "specialist": "minimax/minimax-m2.5:free",              # Office/productivity tasks
+        "problem_solver": "nvidia/nemotron-3-super-120b-a12b:free",      # Problem analysis and decomposition
+        "answerer": "nvidia/nemotron-3-super-120b-a12b:free",            # General knowledge and explanations
+        "task_executor": "nvidia/nemotron-3-super-120b-a12b:free",       # Complex task planning
+        "web_navigator": "nvidia/nemotron-3-super-120b-a12b:free",       # Web browsing optimization
+        "specialist": "nvidia/nemotron-3-super-120b-a12b:free",          # Office/productivity tasks
     }
     
     ROLES = {
@@ -88,10 +88,10 @@ class MultiAgentSystem:
         for role, model in self.AVAILABLE_MODELS.items():
             self.agents[role] = OpenRouter(api_key=self.api_key)
     
-    def get_agent_response(self, role: str, prompt: str, model: str = None) -> str:
-        """Get response from a specific agent"""
+    def get_agent_response(self, role: str, prompt: str, model: str = None, stream: bool = False) -> str:
+        """Get response from a specific agent with optional streaming"""
         if model is None:
-            model = self.AVAILABLE_MODELS.get(role, "tencent/hy3-preview:free")
+            model = self.AVAILABLE_MODELS.get(role, "nvidia/nemotron-3-super-120b-a12b:free")
         
         if role not in self.agents:
             print(f"Unknown role: {role}")
@@ -107,15 +107,43 @@ class MultiAgentSystem:
                     {"role": "system", "content": system_instructions},
                     {"role": "user", "content": prompt}
                 ],
-                stream=False,
+                stream=stream,
             )
             
-            content = response.choices[0].message.content
-            if isinstance(content, str):
+            if stream:
+                # Handle streaming response
+                content = ""
+                reasoning_tokens = 0
+                for chunk in response:
+                    if hasattr(chunk, 'choices') and chunk.choices:
+                        delta = chunk.choices[0].delta if hasattr(chunk.choices[0], 'delta') else None
+                        if delta and hasattr(delta, 'content') and delta.content:
+                            content += delta.content
+                    
+                    # Extract reasoning tokens from usage
+                    if hasattr(chunk, 'usage') and chunk.usage:
+                        if hasattr(chunk.usage, 'reasoningTokens'):
+                            reasoning_tokens = chunk.usage.reasoningTokens
+                
+                if reasoning_tokens > 0:
+                    print(f"[{role}] Reasoning tokens: {reasoning_tokens}")
                 return content
-            elif isinstance(content, list):
-                return "\n".join([item.get("text", str(item)) for item in content if hasattr(item, "get")])
-            return str(content)
+            else:
+                # Handle non-streaming response
+                content = response.choices[0].message.content
+                
+                # Extract reasoning tokens if available
+                if hasattr(response, 'usage') and response.usage:
+                    if hasattr(response.usage, 'reasoningTokens'):
+                        reasoning_tokens = response.usage.reasoningTokens
+                        if reasoning_tokens > 0:
+                            print(f"[{role}] Reasoning tokens: {reasoning_tokens}")
+                
+                if isinstance(content, str):
+                    return content
+                elif isinstance(content, list):
+                    return "\n".join([item.get("text", str(item)) for item in content if hasattr(item, "get")])
+                return str(content)
         except Exception as e:
             print(f"Error getting response from {role}: {str(e)}")
             return None
