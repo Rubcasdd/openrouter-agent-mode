@@ -34,8 +34,8 @@ ensure_dependencies()
 # Always import OpenRouterAgent - pyautogui errors will be handled at runtime
 from agent import OpenRouterAgent
 
-DEFAULT_MODEL = "tencent/hy3-preview:free"
-FALLBACK_MODELS = ["tencent/hy3-preview:free", "baidu/qianfan-ocr-fast:free"]
+DEFAULT_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
+FALLBACK_MODELS = ["nvidia/nemotron-3-super-120b-a12b:free"]
 
 PROFILES = {
     "assistant": "You are a helpful assistant.",
@@ -98,6 +98,9 @@ def main():
     agent = OpenRouterAgent(api_key=api_key, model=DEFAULT_MODEL)
 
     print("Type 'exit' or 'quit' to stop.")
+    print(f"Using AI Model: {DEFAULT_MODEL}")
+    print("AI will use browser automation for web tasks and screenshots...\n")
+    
     while True:
         user_text = input("You: ").strip()
         if not user_text:
@@ -106,7 +109,19 @@ def main():
             break
 
         history = [{"role": "user", "content": user_text}]
-        print("Starting multi-step task...")
+        print("\n🌐 Starting web browsing with screenshots...")
+        
+        # Try unified coordinator with browser automation
+        try:
+            from unified_coordinator import UnifiedAgentCoordinator
+            coordinator = UnifiedAgentCoordinator(api_key=api_key)
+            coordinator.run_all_modes(user_text)
+            print("\n✅ Task completed\n")
+            continue
+        except Exception as e:
+            print(f"Browser mode failed: {e}. Falling back to standard chat...")
+        
+        print("Starting multi-step analysis...")
 
         while True:
             # Take screenshot and send as image to AI (only if DISPLAY available)

@@ -27,6 +27,7 @@ class AdvancedBrowserAutomation:
             "completed": True,
             "steps_executed": 0,
             "final_content": None,
+            "screenshot": None,
             "errors": [],
             "history": []
         }
@@ -46,13 +47,35 @@ class AdvancedBrowserAutomation:
                         results["errors"].append(step_result["error"])
                         break
                 
-                # Capture final page state
+                # Capture final page state and screenshot
                 results["final_content"] = await self.page.content()
+                
+                # Take final screenshot before closing
+                try:
+                    import base64
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    screenshot_path = f"/tmp/browser_final_{timestamp}.png"
+                    await self.page.screenshot(path=screenshot_path, full_page=True)
+                    
+                    # Encode as base64
+                    with open(screenshot_path, "rb") as f:
+                        base64_data = base64.b64encode(f.read()).decode('utf-8')
+                    
+                    results["screenshot"] = {
+                        "success": True,
+                        "path": screenshot_path,
+                        "base64": base64_data,
+                        "data_url": f"data:image/png;base64,{base64_data}"
+                    }
+                except Exception as e:
+                    print(f"      ⚠️  Final screenshot failed: {str(e)}")
+                    results["screenshot"] = {"success": False, "error": str(e)}
                 
                 await self.browser.close()
         except Exception as e:
             results["completed"] = False
             results["errors"].append(str(e))
+            results["screenshot"] = {"success": False, "error": str(e)}
         
         return results
     

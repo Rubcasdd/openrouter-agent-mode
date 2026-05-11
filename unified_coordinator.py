@@ -215,18 +215,9 @@ class UnifiedAgentCoordinator:
                     if step_result.get("result") and isinstance(step_result["result"], str):
                         extracted_content.append(step_result["result"])
                 
-                # Take a screenshot of the current page for publishing
-                try:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    screenshot_result = loop.run_until_complete(browser.take_and_return_screenshot())
-                    loop.close()
-                    screenshot_available = screenshot_result.get("success", False)
-                    screenshot_data = screenshot_result.get("data_url") if screenshot_available else None
-                except Exception as e:
-                    print(f"      ⚠️  Screenshot capture failed: {str(e)}")
-                    screenshot_available = False
-                    screenshot_data = None
+                # Get screenshot from result
+                screenshot_available = result.get("screenshot", {}).get("success", False)
+                screenshot_data = result.get("screenshot", {}).get("data_url") if screenshot_available else None
                 
                 # Create actionable response with screenshot and publishing info
                 actionable_response = f"""🔍 **Web Navigation Results for: {task}**
