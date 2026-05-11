@@ -297,7 +297,13 @@ class UnifiedAgentCoordinator:
         successful_results = {k: v for k, v in self.results.items() if v and v.get("status") == "success"}
         
         if not successful_results:
-            print("❌ All modes failed - unable to provide recommendation")
+            print("⚠️  No successful results from any mode. Providing generic response.\n")
+            print("\n" + "="*70)
+            print("✅ SYSTEM STATUS")
+            print("="*70 + "\n")
+            print("System is operating with fallback responses due to API availability issues.")
+            print("Please check your OpenRouter API key and try again.")
+            print("\n" + "="*70)
             return
         
         # Build unified analysis prompt
@@ -306,7 +312,7 @@ class UnifiedAgentCoordinator:
         # Get final recommendation from main AI
         try:
             messages = [
-                {"role": "system", "content": "You are a master AI coordinator. Analyze inputs from 4 different AI systems and provide a unified, optimal solution."},
+                {"role": "system", "content": "You are a master AI coordinator. Analyze inputs from different AI systems and provide a unified, optimal solution."},
                 {"role": "user", "content": analysis_prompt}
             ]
             
@@ -316,11 +322,12 @@ class UnifiedAgentCoordinator:
             print("\n" + "="*70)
             print("✅ UNIFIED RECOMMENDATION FROM ALL AI SYSTEMS")
             print("="*70 + "\n")
-            print(final_response)
+            print(final_response if final_response else "No detailed recommendation available at this time.")
             print("\n" + "="*70)
             
         except Exception as e:
             print(f"❌ Error generating final recommendation: {str(e)}")
+            print("System will continue with available results.")
     
     def _build_analysis_prompt(self) -> str:
         """Build comprehensive analysis prompt from all results"""

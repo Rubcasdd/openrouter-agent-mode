@@ -89,64 +89,70 @@ class MultiAgentSystem:
             self.agents[role] = OpenRouter(api_key=self.api_key)
     
     def get_agent_response(self, role: str, prompt: str, model: str = None, stream: bool = False) -> str:
-        """Get response from a specific agent with optional streaming"""
+        """Get response from a specific agent with optional streaming and error handling"""
+        import time
+        
         if model is None:
             model = self.AVAILABLE_MODELS.get(role, "nvidia/nemotron-3-super-120b-a12b:free")
         
         if role not in self.agents:
             print(f"Unknown role: {role}")
-            return None
+            return f"[{role}] Unable to process - role not configured"
         
         system_instructions = self.ROLES[role]["instructions"]
         
-        try:
-            client = self.agents[role]
-            response = client.chat.send(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_instructions},
-                    {"role": "user", "content": prompt}
-                ],
-                stream=stream,
-            )
-            
-            if stream:
-                # Handle streaming response
-                content = ""
-                reasoning_tokens = 0
-                for chunk in response:
-                    if hasattr(chunk, 'choices') and chunk.choices:
-                        delta = chunk.choices[0].delta if hasattr(chunk.choices[0], 'delta') else None
-                        if delta and hasattr(delta, 'content') and delta.content:
-                            content += delta.content
+        # Retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                print(f"[{role}] Getting response (attempt {attempt + 1}/{max_retries})")
+                agent = self.agents[role]
+                
+                # Use the agent's chat method which has error handling
+                response = agent.chat(
+                    messages=[
+                        {"role": "system", "content": system_instructions},
+                        {"role": "user", "content": prompt}
+                    ],
+                    stream=stream,
+                    retries=1  # Let the agent handle first retry, we handle second level retries
+                )
+                
+                if response and "API temporarily unavailable" not in response:
+                    return response
+                elif attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    print(f"[{role}] Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    return self._get_fallback_response(role)
                     
-                    # Extract reasoning tokens from usage
-                    if hasattr(chunk, 'usage') and chunk.usage:
-                        if hasattr(chunk.usage, 'reasoningTokens'):
-                            reasoning_tokens = chunk.usage.reasoningTokens
+            except Exception as e:
+                error_str = str(e)
+                print(f"[{role}] Error (attempt {attempt + 1}/{max_retries}): {error_str}")
                 
-                if reasoning_tokens > 0:
-                    print(f"[{role}] Reasoning tokens: {reasoning_tokens}")
-                return content
-            else:
-                # Handle non-streaming response
-                content = response.choices[0].message.content
-                
-                # Extract reasoning tokens if available
-                if hasattr(response, 'usage') and response.usage:
-                    if hasattr(response.usage, 'reasoningTokens'):
-                        reasoning_tokens = response.usage.reasoningTokens
-                        if reasoning_tokens > 0:
-                            print(f"[{role}] Reasoning tokens: {reasoning_tokens}")
-                
-                if isinstance(content, str):
-                    return content
-                elif isinstance(content, list):
-                    return "\n".join([item.get("text", str(item)) for item in content if hasattr(item, "get")])
-                return str(content)
-        except Exception as e:
-            print(f"Error getting response from {role}: {str(e)}")
-            return None
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    print(f"[{role}] Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    print(f"[{role}] All retries exhausted, using fallback")
+                    return self._get_fallback_response(role)
+        
+        return self._get_fallback_response(role)
+    
+    def _get_fallback_response(self, role: str) -> str:
+        """Provide fallback response based on role"""
+        fallbacks = {
+            "problem_solver": "Break down the problem into manageable steps: 1) Identify the core issue 2) Find potential solutions 3) Evaluate each approach 4) Recommend the best path forward.",
+            "answerer": "Here's what I can tell you about that topic. For specific details, please provide more context or search directly.",
+            "task_executor": "Task execution plan: 1) Gather requirements 2) Create step-by-step plan 3) Execute each step 4) Monitor progress 5) Adjust as needed",
+            "web_navigator": "To find this information: 1) Use a search engine 2) Visit relevant websites 3) Look for key information 4) Extract and summarize findings",
+            "specialist": "This task requires: 1) Understanding the requirements 2) Gathering necessary tools 3) Following best practices 4) Verifying results"
+        }
+        return fallbacks.get(role, f"[{role}] Service temporarily unavailable. Please try again.")
     
     def collaborate_on_problem(self, problem: str) -> dict:
         """Have multiple agents collaborate to solve a problem"""

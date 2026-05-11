@@ -17,48 +17,90 @@ class OpenRouterAgent:
         self.action_history = []
         self.reasoning_tokens = 0
 
-    def chat(self, messages, stream: bool = False):
-        """Send chat message to OpenRouter with optional streaming"""
-        print(f"Calling chat.send (streaming={stream})")
-        try:
-            response = self.client.chat.send(
-                model=self.model,
-                messages=messages,
-                stream=stream,
-            )
-            
-            if stream:
-                # Handle streaming response
-                content = ""
-                reasoning_tokens = 0
-                for chunk in response:
-                    if hasattr(chunk, 'choices') and chunk.choices:
-                        delta = chunk.choices[0].delta if hasattr(chunk.choices[0], 'delta') else None
-                        if delta and hasattr(delta, 'content') and delta.content:
-                            content += delta.content
+    def chat(self, messages, stream: bool = False, retries: int = 3):
+        """Send chat message to OpenRouter with optional streaming and retry logic"""
+        import time
+        
+        for attempt in range(retries):
+            try:
+                print(f"Calling chat.send (streaming={stream}, attempt {attempt + 1}/{retries})")
+                response = self.client.chat.send(
+                    model=self.model,
+                    messages=messages,
+                    stream=stream,
+                )
+                
+                # Check if response is an error
+                if isinstance(response, dict) and 'error' in response:
+                    error_msg = response.get('error', {}).get('message', 'Unknown error')
+                    print(f"API Error: {error_msg}")
+                    if attempt < retries - 1:
+                        wait_time = 2 ** attempt  # Exponential backoff
+                        print(f"Retrying in {wait_time} seconds...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        return self._get_fallback_response()
+                
+                if stream:
+                    # Handle streaming response
+                    content = ""
+                    reasoning_tokens = 0
+                    for chunk in response:
+                        if hasattr(chunk, 'choices') and chunk.choices:
+                            delta = chunk.choices[0].delta if hasattr(chunk.choices[0], 'delta') else None
+                            if delta and hasattr(delta, 'content') and delta.content:
+                                content += delta.content
+                        
+                        # Extract reasoning tokens from usage
+                        if hasattr(chunk, 'usage') and chunk.usage:
+                            if hasattr(chunk.usage, 'reasoningTokens'):
+                                reasoning_tokens = chunk.usage.reasoningTokens
                     
-                    # Extract reasoning tokens from usage
-                    if hasattr(chunk, 'usage') and chunk.usage:
-                        if hasattr(chunk.usage, 'reasoningTokens'):
-                            reasoning_tokens = chunk.usage.reasoningTokens
-                
-                self.reasoning_tokens = reasoning_tokens
-                print(f"Response received (reasoning tokens: {reasoning_tokens})")
-                return content
-            else:
-                # Handle non-streaming response
-                print("Response received")
-                content = self._extract_content(response.choices[0].message.content)
-                
-                # Extract reasoning tokens if available
-                if hasattr(response, 'usage') and response.usage:
-                    if hasattr(response.usage, 'reasoningTokens'):
-                        self.reasoning_tokens = response.usage.reasoningTokens
-                
-                return content
-        except Exception as e:
-            print(f"Error in chat: {str(e)}")
-            raise
+                    self.reasoning_tokens = reasoning_tokens
+                    if reasoning_tokens > 0:
+                        print(f"Response received (reasoning tokens: {reasoning_tokens})")
+                    else:
+                        print("Response received")
+                    return content
+                else:
+                    # Handle non-streaming response
+                    if not hasattr(response, 'choices') or not response.choices:
+                        print(f"Invalid response format")
+                        if attempt < retries - 1:
+                            wait_time = 2 ** attempt
+                            print(f"Retrying in {wait_time} seconds...")
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            return self._get_fallback_response()
+                    
+                    print("Response received")
+                    content = self._extract_content(response.choices[0].message.content)
+                    
+                    # Extract reasoning tokens if available
+                    if hasattr(response, 'usage') and response.usage:
+                        if hasattr(response.usage, 'reasoningTokens'):
+                            self.reasoning_tokens = response.usage.reasoningTokens
+                    
+                    return content
+            except Exception as e:
+                error_str = str(e)
+                print(f"Error in chat (attempt {attempt + 1}/{retries}): {error_str}")
+                if attempt < retries - 1:
+                    wait_time = 2 ** attempt
+                    print(f"Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    print(f"All retries failed, using fallback response")
+                    return self._get_fallback_response()
+        
+        return self._get_fallback_response()
+    
+    def _get_fallback_response(self) -> str:
+        """Return a fallback response when API fails"""
+        return "API temporarily unavailable. Providing generic assistant response. Please try again in a moment."
     
     def encode_image_to_base64(self, image_path):
         """Convert image file to base64 for API"""
